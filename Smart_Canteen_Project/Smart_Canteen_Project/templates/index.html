@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#092b20">
+    <title>Smart Canteen | Order Desk</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="ambient-scene" aria-hidden="true"></div>
+    <header class="topbar glass-surface">
+        <a class="brand" href="{{ url_for('index') }}" aria-label="Smart Canteen home">
+            <img class="brand-logo" src="{{ url_for('static', filename='images/smart-canteen-logo.svg') }}" alt="Smart Canteen logo">
+        </a>
+        <div class="topbar-status"><span class="live-dot"></span><span>LOCAL ORDER DESK</span><span class="topbar-divider">/</span><span>SQLITE CONNECTED</span></div>
+    </header>
+
+    <main class="page-shell">
+        <section class="hero glass-surface">
+            <div class="hero-copy">
+                <p class="eyebrow"><span class="eyebrow-mark"></span> CAMPUS FOOD SERVICE <span class="eyebrow-divider">/</span> QUEUE CONTROL</p>
+                <h1>Smart Canteen<br><span>Rush Management System</span></h1>
+                <p class="intro">A faster, fairer lunch rush. Normal orders keep their place, priority orders move ahead, and every meal is tracked from counter to receipt.</p>
+                <div class="hero-tags"><span>01 <b>FIFO QUEUE</b></span><span>02 <b>PRIORITY SERVICE</b></span><span>03 <b>LOCAL ORDER HISTORY</b></span></div>
+            </div>
+            <div class="hero-visual">
+                <img src="{{ url_for('static', filename='images/canteen_logo.png.png') }}" alt="Neon Smart Canteen storefront">
+                <div class="visual-chip"><i></i><span>FRESH FROM THE COUNTER</span></div>
+                <span class="visual-caption">CANTEEN SPECIAL <b>№ 01</b></span>
+            </div>
+            <span class="hero-glow" aria-hidden="true"></span>
+        </section>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack" aria-live="polite">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}" role="status">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <section class="stats-row glass-surface" aria-label="Order totals">
+            <div class="stat-block"><span class="stat-label">PENDING ORDERS</span><strong>{{ pending_orders|length }}</strong><span class="stat-detail">in the live queue</span></div>
+            <div class="stat-block"><span class="stat-label">COMPLETED ORDERS</span><strong>{{ completed_orders|length }}</strong><span class="stat-detail">served orders</span></div>
+            <div class="stats-caption"><span class="stats-line"></span><span>Order status and demo payment<br>status are tracked separately.</span></div>
+        </section>
+
+        <section class="work-grid">
+            <section class="panel glass-surface add-panel" aria-labelledby="add-heading">
+                <div class="panel-heading">
+                    <div><p class="section-kicker">01 <span>/</span> ORDER ENTRY</p><h2 id="add-heading">Build an order</h2></div>
+                    <span class="heading-icon" aria-hidden="true">＋</span>
+                </div>
+                <form action="{{ url_for('add_order') }}" method="post" class="order-form" id="order-form">
+                    <div class="identity-grid">
+                        <div class="field-group"><label for="customer_name">Customer name</label><input id="customer_name" name="customer_name" type="text" maxlength="80" placeholder="e.g. Asha Patel" autocomplete="name" required></div>
+                        <div class="field-group"><label for="phone_number">Phone <span class="optional-label">OPTIONAL</span></label><input id="phone_number" name="phone_number" type="tel" maxlength="16" placeholder="+91 mobile" autocomplete="tel" inputmode="tel"></div>
+                    </div>
+                    <div class="item-section-head"><div><label>Order items</label><small>Menu prices are set by the canteen</small></div><button type="button" id="add-item" class="button button-add-item"><span>＋</span> Add item</button></div>
+                    <div id="item-rows" class="item-rows"></div>
+                    <template id="item-row-template">
+                        <div class="item-row">
+                            <div class="item-name-field">
+                                <label class="row-label">Food item</label>
+                                <select class="menu-select" name="menu_key[]" aria-label="Food item">
+                                    <option value="" disabled selected>Choose a menu item</option>
+                                    {% for item in menu_items %}<option value="{{ item.key }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price) }}">{{ item.name }} · ₹{{ '%.2f'|format(item.price) }}</option>{% endfor %}
+                                    <option value="__custom__">Custom item…</option>
+                                </select>
+                                <input class="custom-name" name="custom_name[]" maxlength="100" placeholder="Enter custom food name" aria-label="Custom food name" hidden disabled>
+                                <input class="item-kind" type="hidden" name="item_kind[]" value="menu">
+                            </div>
+                            <div class="item-qty-field"><label class="row-label">Qty</label><input class="item-quantity" name="item_quantity[]" type="number" min="1" max="99" value="1" required aria-label="Item quantity"></div>
+                            <div class="item-price-field"><label class="row-label">Unit</label><div class="unit-price">₹<span>0.00</span></div><input class="custom-price" name="custom_price[]" type="number" min="0.01" max="100000" step="0.01" placeholder="Price" aria-label="Custom unit price" hidden disabled></div>
+                            <div class="item-total-field"><label class="row-label">Line total</label><strong class="line-total">₹0.00</strong></div>
+                            <button class="remove-item" type="button" aria-label="Remove item" title="Remove item">×</button>
+                        </div>
+                    </template>
+                    <div class="priority-grid">
+                        <div class="field-group"><label for="order_type">Service type</label><select id="order_type" name="order_type"><option value="normal">Normal · FIFO</option><option value="priority">Priority · rush service</option></select></div>
+                        <div class="field-group priority-field" id="priority-field" hidden><label for="priority">Priority level <span>5 = highest</span></label><select id="priority" name="priority" disabled><option value="1">1 · Standard</option><option value="2">2 · Elevated</option><option value="3">3 · Medium</option><option value="4">4 · High</option><option value="5">5 · Highest</option></select></div>
+                    </div>
+                    <div class="order-total"><span>Order subtotal</span><strong id="subtotal">₹0.00</strong></div>
+                    <button class="button button-primary" type="submit"><span>Add order to queue</span><span aria-hidden="true">↗</span></button>
+                </form>
+                <p class="form-note"><span class="note-dot"></span> Menu prices are verified and totals calculated on the server.</p>
+            </section>
+
+            <section class="panel glass-surface queue-panel" aria-labelledby="queue-heading">
+                <div class="panel-heading queue-title-row">
+                    <div><p class="section-kicker">02 <span>/</span> LIVE QUEUE</p><h2 id="queue-heading">Pending orders <span class="count-pill">{{ pending_orders|length }}</span></h2></div>
+                    <form action="{{ url_for('process_next') }}" method="post"><button class="button button-process" type="submit" {% if not pending_orders %}disabled{% endif %}><span class="play-icon" aria-hidden="true">▶</span> Process next</button></form>
+                </div>
+                <div class="table-wrap">
+                    <table class="order-table">
+                        <thead><tr><th>ORDER</th><th>CUSTOMER / ITEMS</th><th>TOTAL</th><th>QUEUE</th><th>STATUS</th><th>PAYMENT</th><th>ADDED</th></tr></thead>
+                        <tbody>
+                            {% for order in pending_orders %}
+                            <tr id="order-{{ order.id }}" class="order-row" data-order-id="{{ order.id }}" tabindex="0" role="button" aria-label="Open details for order {{ order.id }}">
+                                <td class="order-id">#{{ order.id }}</td>
+                                <td><span class="customer-name">{{ order.customer_name }}</span><span class="food-name">{{ order['items']|length }} item{% if order['items']|length != 1 %}s{% endif %} · {{ order['items']|map(attribute='item_name')|join(', ') }}</span></td>
+                                <td class="money-cell">{% if order.total_amount is not none %}₹{{ '%.2f'|format(order.total_amount) }}{% else %}Legacy{% endif %}</td>
+                                <td>{% if order.order_type == 'priority' %}<span class="type-badge priority-badge">Priority <b>{{ order.priority }}</b></span>{% else %}<span class="type-badge normal-badge">Normal</span>{% endif %}</td>
+                                <td><span class="status-badge status-pending"><i></i> Pending</span></td>
+                                <td><form class="payment-inline" action="{{ url_for('update_payment', order_id=order.id) }}" method="post" onclick="event.stopPropagation()"><input type="hidden" name="payment_status" value="{% if order.payment_status == 'paid' %}pending{% else %}paid{% endif %}"><button type="submit" class="payment-badge {% if order.payment_status == 'paid' %}is-paid{% endif %}" title="Toggle demo payment status"><i></i>{{ order.payment_status|title }}</button></form></td>
+                                <td class="time-cell">{{ order.created_at_display }}</td>
+                            </tr>
+                            {% else %}<tr><td colspan="7" class="empty-state"><span class="empty-mark">✳</span><span>No orders waiting</span><small>Your queue will appear here.</small></td></tr>{% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="queue-foot"><span class="queue-order-dot"></span> Priority orders first, then normal orders by arrival <span class="queue-foot-note">· click an order for details</span></div>
+            </section>
+        </section>
+
+        <section class="panel glass-surface completed-panel" aria-labelledby="completed-heading">
+            <div class="panel-heading completed-heading">
+                <div><p class="section-kicker">03 <span>/</span> SERVICE HISTORY</p><h2 id="completed-heading">Recently completed <span class="count-pill count-muted">{{ completed_orders|length }}</span></h2></div>
+                <form action="{{ url_for('reset') }}" method="post" onsubmit="return confirm('Clear all pending and completed demo orders? This cannot be undone.');"><button class="button button-reset" type="submit" {% if not pending_orders and not completed_orders %}disabled{% endif %}><span aria-hidden="true">↺</span> Reset demo data</button></form>
+            </div>
+            <div class="table-wrap"><table class="order-table"><thead><tr><th>ORDER</th><th>CUSTOMER / ITEMS</th><th>TOTAL</th><th>QUEUE</th><th>STATUS</th><th>PAYMENT</th><th>SERVED</th></tr></thead><tbody>
+                {% for order in completed_orders %}
+                <tr id="order-{{ order.id }}" class="order-row" data-order-id="{{ order.id }}" tabindex="0" role="button" aria-label="Open bill and details for order {{ order.id }}">
+                    <td class="order-id">#{{ order.id }}</td><td><span class="customer-name">{{ order.customer_name }}</span><span class="food-name">{{ order['items']|length }} item{% if order['items']|length != 1 %}s{% endif %} · {{ order['items']|map(attribute='item_name')|join(', ') }}</span></td>
+                    <td class="money-cell">{% if order.total_amount is not none %}₹{{ '%.2f'|format(order.total_amount) }}{% else %}Legacy{% endif %}</td>
+                    <td>{% if order.order_type == 'priority' %}<span class="type-badge priority-badge">Priority <b>{{ order.priority }}</b></span>{% else %}<span class="type-badge normal-badge">Normal</span>{% endif %}</td>
+                    <td><span class="status-badge status-complete"><i></i> Completed</span></td>
+                    <td><span class="payment-badge {% if order.payment_status == 'paid' %}is-paid{% endif %}"><i></i>{{ order.payment_status|title }}</span></td>
+                    <td class="time-cell">{{ order.completed_at_display }}</td>
+                </tr>
+                {% else %}<tr><td colspan="7" class="empty-state compact-empty"><span>No completed orders yet</span></td></tr>{% endfor %}
+            </tbody></table></div>
+        </section>
+
+        <footer class="page-footer"><span>SMART CANTEEN RUSH MANAGEMENT SYSTEM</span><span>LOCAL SQLITE STORAGE <i></i> DEMO PAYMENT TRACKING ONLY</span></footer>
+    </main>
+
+    <dialog class="order-dialog glass-surface" id="order-dialog" aria-labelledby="dialog-title">
+        <div class="dialog-head"><div><p class="section-kicker">ORDER OVERVIEW</p><h2 id="dialog-title">Order details</h2></div><button type="button" class="dialog-close" aria-label="Close order details">×</button></div>
+        <div id="dialog-content" class="dialog-content"><p class="loading-state">Loading order…</p></div>
+    </dialog>
+
+    <script>
+        const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value || 0);
+        const rowsContainer = document.getElementById('item-rows');
+        const rowTemplate = document.getElementById('item-row-template');
+        const subtotal = document.getElementById('subtotal');
+        const orderType = document.getElementById('order_type');
+        const priorityField = document.getElementById('priority-field');
+        const prioritySelect = document.getElementById('priority');
+        const dialog = document.getElementById('order-dialog');
+        const dialogContent = document.getElementById('dialog-content');
+
+        function updateRow(row) {
+            const menuSelect = row.querySelector('.menu-select');
+            const selected = menuSelect.selectedOptions[0];
+            const custom = menuSelect.value === '__custom__';
+            const customName = row.querySelector('.custom-name');
+            const customPrice = row.querySelector('.custom-price');
+            const itemKind = row.querySelector('.item-kind');
+            const unitPriceText = row.querySelector('.unit-price span');
+            const quantity = Math.max(1, Number.parseInt(row.querySelector('.item-quantity').value, 10) || 1);
+            let price = 0;
+            itemKind.value = custom ? 'custom' : 'menu';
+            customName.hidden = !custom;
+            customName.disabled = false;
+            customPrice.hidden = !custom;
+            customPrice.disabled = false;
+            menuSelect.required = !custom;
+            customName.required = custom;
+            customPrice.required = custom;
+            if (custom) {
+                price = Number(customPrice.value) || 0;
+                unitPriceText.textContent = price.toFixed(2);
+            } else if (selected && selected.dataset.price) {
+                price = Number(selected.dataset.price);
+                unitPriceText.textContent = price.toFixed(2);
+            } else {
+                unitPriceText.textContent = '0.00';
+            }
+            row.querySelector('.line-total').textContent = money(price * quantity);
+            return price * quantity;
+        }
+
+        function updateTotals() {
+            let total = 0;
+            rowsContainer.querySelectorAll('.item-row').forEach(row => { total += updateRow(row); });
+            subtotal.textContent = money(total);
+        }
+
+        function addItemRow() {
+            const row = rowTemplate.content.firstElementChild.cloneNode(true);
+            rowsContainer.append(row);
+            if (rowsContainer.children.length > 1) row.querySelector('.remove-item').hidden = false;
+            updateTotals();
+        }
+
+        document.getElementById('add-item').addEventListener('click', addItemRow);
+        rowsContainer.addEventListener('input', event => {
+            if (event.target.matches('.item-quantity, .custom-price')) updateTotals();
+        });
+        rowsContainer.addEventListener('change', event => {
+            if (event.target.matches('.menu-select')) updateTotals();
+        });
+        rowsContainer.addEventListener('click', event => {
+            const remove = event.target.closest('.remove-item');
+            if (!remove) return;
+            if (rowsContainer.children.length > 1) remove.closest('.item-row').remove();
+            rowsContainer.querySelectorAll('.remove-item').forEach(button => { button.hidden = rowsContainer.children.length === 1; });
+            updateTotals();
+        });
+        orderType.addEventListener('change', () => {
+            const isPriority = orderType.value === 'priority';
+            priorityField.hidden = !isPriority;
+            prioritySelect.disabled = !isPriority;
+        });
+        addItemRow();
+
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+        function renderOrder(order) {
+            const rows = order.items.map(item => `<tr><td>${escapeHtml(item.item_name)}</td><td>${item.quantity}</td><td>${item.unit_price === null ? 'Not recorded' : money(item.unit_price)}</td><td>${item.line_total === null ? 'Not recorded' : money(item.line_total)}</td></tr>`).join('');
+            const paymentTarget = order.payment_status === 'paid' ? 'pending' : 'paid';
+            const paymentButton = `<form action="/orders/${order.id}/payment" method="post"><input type="hidden" name="payment_status" value="${paymentTarget}"><button class="button button-secondary" type="submit">Mark as ${paymentTarget === 'paid' ? 'Paid' : 'Pending'}</button></form>`;
+            const billLink = `<a class="button button-secondary" href="/orders/${order.id}/bill">View Bill / Receipt</a>`;
+            const total = order.total_amount === null ? 'Not recorded for legacy order' : money(order.total_amount);
+            return `<div class="detail-meta"><div><span>Customer</span><strong>${escapeHtml(order.customer_name)}</strong></div>${order.phone_number ? `<div><span>Phone</span><strong>${escapeHtml(order.phone_number)}</strong></div>` : ''}<div><span>Order type</span><strong>${escapeHtml(order.order_type)}${order.priority ? ` · level ${order.priority}` : ''}</strong></div><div><span>Order status</span><strong>${escapeHtml(order.status)}</strong></div><div><span>Payment status</span><strong>${escapeHtml(order.payment_status)} <small>(demo tracker)</small></strong></div><div><span>Created</span><strong>${escapeHtml(order.created_at_display)}</strong></div>${order.completed_at_display !== '—' ? `<div><span>Completed</span><strong>${escapeHtml(order.completed_at_display)}</strong></div>` : ''}</div><div class="detail-table-wrap"><table class="detail-table"><thead><tr><th>ITEM</th><th>QTY</th><th>UNIT PRICE</th><th>LINE TOTAL</th></tr></thead><tbody>${rows}</tbody></table></div><div class="detail-grand-total"><span>Order total</span><strong>${total}</strong></div><div class="dialog-actions">${order.payment_status === 'pending' ? paymentButton : paymentButton}${billLink}</div>`;
+        }
+
+        async function openOrder(row) {
+            dialog.showModal();
+            dialogContent.innerHTML = '<p class="loading-state">Loading order…</p>';
+            try {
+                const response = await fetch(`/orders/${row.dataset.orderId}/details`, { headers: { Accept: 'application/json' } });
+                if (!response.ok) throw new Error('Could not load this order.');
+                const order = await response.json();
+                document.getElementById('dialog-title').textContent = `Order #${order.id}`;
+                dialogContent.innerHTML = renderOrder(order);
+            } catch (error) {
+                dialogContent.innerHTML = `<p class="flash flash-error">${escapeHtml(error.message)}</p>`;
+            }
+        }
+        document.querySelectorAll('.order-row').forEach(row => {
+            row.addEventListener('click', event => { if (!event.target.closest('form, button, a')) openOrder(row); });
+            row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openOrder(row); } });
+        });
+        document.querySelector('.dialog-close').addEventListener('click', () => dialog.close());
+        dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+    </script>
+</body>
+</html>

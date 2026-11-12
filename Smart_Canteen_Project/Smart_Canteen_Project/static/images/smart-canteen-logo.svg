@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Smart Canteen</title>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="#b9f278"/>
+  <path d="M13 17h38v8H13zm4 11h30v19H17z" fill="#123b2c"/>
+  <path d="M21 33h8v10h-8zm14 0h8v10h-8z" fill="#b9f278"/>
+  <path d="M12 50h40" stroke="#123b2c" stroke-width="4" stroke-linecap="round"/>
+  <path d="M32 8c-5 4-5 7 0 9 5-2 5-5 0-9z" fill="#e89153"/>
+</svg>

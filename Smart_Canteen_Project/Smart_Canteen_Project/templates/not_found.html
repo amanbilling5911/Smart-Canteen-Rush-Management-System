@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order not found | Smart Canteen</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="receipt-page">
+    <main class="not-found glass-surface">
+        <img src="{{ url_for('static', filename='images/smart-canteen-logo.svg') }}" alt="Smart Canteen">
+        <p class="section-kicker">ORDER DESK</p>
+        <h1>Order not found</h1>
+        <p>This order ID is not available in the local order history.</p>
+        <a class="button button-primary" href="{{ url_for('index') }}">Return to dashboard</a>
+    </main>
+</body>
+</html>

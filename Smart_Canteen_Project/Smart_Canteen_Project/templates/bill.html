@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt #{{ order.id }} | Smart Canteen</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="receipt-page">
+    <main class="receipt-shell">
+        <article class="receipt glass-surface">
+            <header class="receipt-brand">
+                <img src="{{ url_for('static', filename='images/smart-canteen-logo.svg') }}" alt="Smart Canteen logo">
+                <div><p class="receipt-kicker">CAMPUS FOOD SERVICE</p><h1>Smart Canteen</h1><span>Order receipt</span></div>
+            </header>
+            <div class="receipt-rule"></div>
+            <div class="receipt-title"><div><p class="section-kicker">RECEIPT № {{ order.id }}</p><h2>Order #{{ order.id }}</h2></div><span class="status-badge {% if order.status == 'completed' %}status-complete{% else %}status-pending{% endif %}"><i></i>{{ order.status|title }}</span></div>
+            {% if order.status != 'completed' %}<p class="receipt-notice">This order is still pending and has not been completed.</p>{% endif %}
+            <dl class="receipt-meta"><div><dt>Customer</dt><dd>{{ order.customer_name }}</dd></div>{% if order.phone_number %}<div><dt>Phone</dt><dd>{{ order.phone_number }}</dd></div>{% endif %}<div><dt>Placed</dt><dd>{{ order.created_at_display }}</dd></div>{% if order.completed_at_display != '—' %}<div><dt>Served</dt><dd>{{ order.completed_at_display }}</dd></div>{% endif %}</dl>
+            <div class="receipt-table-wrap"><table class="receipt-table"><thead><tr><th>ITEM</th><th>QTY</th><th>UNIT</th><th>AMOUNT</th></tr></thead><tbody>
+                {% for item in order['items'] %}<tr><td>{{ item.item_name }}</td><td>{{ item.quantity }}</td><td>{% if item.unit_price is not none %}₹{{ '%.2f'|format(item.unit_price) }}{% else %}—{% endif %}</td><td>{% if item.line_total is not none %}₹{{ '%.2f'|format(item.line_total) }}{% else %}—{% endif %}</td></tr>{% endfor %}
+            </tbody></table></div>
+            <div class="receipt-total"><span>Grand total</span><strong>{% if order.total_amount is not none %}₹{{ '%.2f'|format(order.total_amount) }}{% else %}Not recorded{% endif %}</strong></div>
+            <div class="receipt-status-line"><span>Service type <b>{{ order.order_type|title }}{% if order.priority %} · level {{ order.priority }}{% endif %}</b></span><span>Demo payment <b>{{ order.payment_status|title }}</b></span></div>
+            <p class="receipt-thanks">Thank you for visiting Smart Canteen.<br><span>We hope you enjoy your meal.</span></p>
+            <div class="receipt-actions no-print"><button type="button" class="button button-primary" onclick="window.print()">Print bill <span aria-hidden="true">⎙</span></button><a class="button button-secondary" href="{{ url_for('index') }}">Back to dashboard</a></div>
+            <p class="receipt-disclaimer no-print">Payment status is a demo tracker only. No payment was collected through this system.</p>
+        </article>
+    </main>
+</body>
+</html>
